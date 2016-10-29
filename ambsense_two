@@ -1,0 +1,249 @@
+// This #include statement was automatically added by the Particle IDE.
+#include "HC_SR04/HC_SR04.h"
+
+
+
+#include<math.h>
+int DATA=D0;
+int LATCH=D1;
+int CLOCK=D2;
+int colour_code=0;
+int speed_code=10;
+int colour_code_rx=0;
+int speed_code_rx=10;
+int trig_pin=D7;
+int echo_pin=A0;
+double cm = 0.0;
+int mic_pin=A2;
+int mic_value=0;
+volatile unsigned long int run_time=0;
+unsigned long int pre_time=0;
+volatile bool flag=1;
+volatile bool flag_rx=1;
+int sensor_pin=D6;
+bool sensor_value;
+int led_pin=A5;
+String combined_data;
+String combined_data_rx;
+int loop_time=0;
+String speed;
+int parsed[]={0,0};
+//int duty_cycle=100;
+//int brightness_pin=A4;
+
+
+HC_SR04 rangefinder = HC_SR04(trig_pin, echo_pin);
+
+
+
+
+int data2[12][32]={
+{0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1},
+{1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0},
+{0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1},
+{1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0},
+{1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0},
+{0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1},
+{1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0},
+{0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1},
+{0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+{1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0},
+{0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+{1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0},
+};
+
+int colour_lock[7][32]={
+{0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},//blue-0
+{1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},//red-1
+{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},//green-2
+{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},//magenta-3
+{1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},//yellow-4
+{0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},//cyan-5
+{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}//white-6
+};
+
+int sweep[16][32]={
+{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1},
+{1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0},
+{1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,1,1,1,1,0,0},
+{1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,1,1,0,0,0},
+{1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0},
+{1,1,1,1,1,0,0,0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0,0,1,1,1,0,0,0,0,0},
+{1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,0,0,0,0,0,0},
+{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0},
+{1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0,0,0,0,0,0,0},
+{1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,0,0,0,0,0,0},
+{1,1,1,1,1,0,0,0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0,0,1,1,1,0,0,0,0,0},
+{1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0},
+{1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,1,1,0,0,0},
+{1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,1,1,1,1,0,0},
+{1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0},
+{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1}};
+
+
+
+int colour_index[]={6,3,0,5,2,4,1};
+int dataDecimal[16][2];
+volatile bool interrupt = false;
+
+void setup()
+{
+Serial.begin(9600);
+pinMode(DATA,OUTPUT);
+pinMode(LATCH,OUTPUT);
+pinMode(CLOCK,OUTPUT);
+Particle.function("colour", load_colour);
+Particle.function("speed", load_speed);
+pinMode(D4,INPUT_PULLUP);
+pinMode(D5,OUTPUT);
+pinMode(echo_pin,INPUT);
+pinMode(mic_pin,INPUT);
+pinMode(trig_pin,OUTPUT);
+pinMode(sensor_pin,INPUT);
+pinMode(led_pin,OUTPUT);
+attachInterrupt(D4,ISR,FALLING);
+clearMatrix();
+Particle.subscribe("vader_audio",getAudio);
+}
+
+
+void loop()
+{
+   digitalWrite(D5, HIGH);
+   loop_time=millis();
+   checkMotion();
+   if (interrupt)
+    {
+    load_matrix();
+    interrupt = false;
+    }
+    else
+    clearMatrix();
+    if((millis()-loop_time)<500)delay(500-(millis()-loop_time));
+   digitalWrite(D5, LOW);
+}
+
+void ISR()
+{
+run_time=millis()-pre_time;
+if(run_time>=30000)
+flag=0;
+else flag=1;
+if(flag==1)
+interrupt=true;
+}
+
+void load_matrix()
+{checkMotion();
+readSonar();
+readMic();
+combineData();
+
+Particle.publish("yoda_audio",combined_data);
+
+
+
+
+//Serial.println(String(colour_code_rx) + "   " + String(speed_code_rx)+" parsed values  ");
+//if(flag_rx!=0){
+for(int j=0;j<16;j++)
+{
+digitalWrite(LATCH,LOW);
+for(int i=31;i>=0;i--)
+{
+digitalWrite(CLOCK,LOW);
+digitalWrite(DATA,(sweep[j][i]||colour_lock[colour_code_rx][i]));
+digitalWrite(CLOCK,HIGH);
+}
+digitalWrite(LATCH,HIGH);
+delay(1000/speed_code);
+//delay((500/speed_code)+(10*j));
+//Serial.println(String(colour_code) + "   " + String(speed_code)+"  sensor  "+String(sensor_value));
+}//}else clearMatrix();
+}
+void checkMotion()
+{
+sensor_value=digitalRead(sensor_pin);
+//Serial.println(sensor_value);
+if(sensor_value==1){
+digitalWrite(led_pin,HIGH);
+//Serial.println(sensor_value);
+flag=1;
+pre_time=millis();
+}else digitalWrite(led_pin,LOW);
+}
+void readSonar()
+{
+cm = rangefinder.getDistanceCM();
+speed_code=map(cm,10,250,40,5);
+if (speed_code>40)speed_code=40;
+else if(speed_code<10)speed_code=10;
+}
+
+void readMic()
+{
+mic_value=analogRead(mic_pin);
+Serial.println("mic value: "+String(mic_value));
+colour_code=map(mic_value,1600,2400,0,6);
+if(colour_code>6)colour_code=6;
+if(colour_code<0)colour_code=0;
+colour_code=colour_index[colour_code];
+//speed_code=speed_code*(colour_code+1);
+//speed_code=map(cm,1600,2400,20,5);
+}
+
+int load_colour(String colour)
+{if (colour!=NULL)
+{colour_code=colour.toInt();return 1;}else return(-1);
+}
+
+int load_speed(String speed)
+{if(speed!=NULL)
+{speed_code=speed.toInt();return 1;}else return(-1);
+}
+
+void clearMatrix()
+{digitalWrite(LATCH,LOW);
+    for(int i=31;i>=0;i--)
+    {digitalWrite(CLOCK,LOW);
+    digitalWrite(DATA,LOW);
+    digitalWrite(CLOCK,HIGH);}
+    digitalWrite(LATCH,HIGH);
+}
+
+void getAudio(const char *name, const char *data) {
+ Serial.println("Data recieved: "+String(data));
+ combined_data_rx=data;
+ parseData();
+}
+/*
+void combineData()
+{
+ combined_data=String(flag)+","+String(colour_code)+","+String(speed_code);
+}
+void parseData()
+{
+for (unsigned int i = 0; i<combined_data_rx.length(); i++) {
+       if (combined_data_rx.substring(i, i+1) == ",") {
+           flag_rx = combined_data_rx.substring(i+1).toInt();
+           colour_code_rx = combined_data_rx.substring(i+3).toInt();
+           speed_code_rx = combined_data_rx.substring(i+6).toInt();
+           Serial.println(String(flag_rx)+","+String(colour_code_rx)+","+String(speed_code_rx));
+           break;
+       }
+}
+}*/
+
+
+void combineData()
+{
+ combined_data=String(colour_code);//+","+String(speed_code);
+}
+void parseData()
+{ colour_code_rx=atoi(combined_data_rx);/*[0]);
+parsed[0]=int(combined_data_rx[2]);
+if(combined_data_rx[3]!=NULL)
+parsed[1]=int(combined_data_rx[3]);
+speed_code_rx=parsed[0]*10+parsed[1];?*/
+
+}
